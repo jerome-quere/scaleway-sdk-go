@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/scaleway/scaleway-sdk-go/api/marketplace/v1"
+
 	"github.com/scaleway/scaleway-sdk-go/internal/testhelpers"
 	"github.com/scaleway/scaleway-sdk-go/internal/testhelpers/httprecorder"
 	"github.com/scaleway/scaleway-sdk-go/namegenerator"
@@ -154,16 +156,28 @@ func TestAPI_CreateServer(t *testing.T) {
 	}()
 
 	instanceAPI := NewAPI(client)
+	marketplaceAPI := marketplace.NewAPI(client)
+
+	imageLabel := "ubuntu-bionic"
+	serverType := "GP1-XS"
+	zone := scw.ZoneFrPar1
 
 	res, err := instanceAPI.CreateServer(&CreateServerRequest{
-		Zone:           scw.ZoneFrPar1,
-		CommercialType: "GP1-XS",
-		Image:          "ubuntu-bionic",
+		Zone:           zone,
+		CommercialType: serverType,
+		Image:          imageLabel,
 	})
 
 	testhelpers.AssertNoError(t, err)
-	// this UUID might change when running the cassette later when the image "ubuntu-bionic" got a new version
-	testhelpers.Equals(t, "f974feac-abae-4365-b988-8ec7d1cec10d", res.Server.Image.ID)
+
+	expectedImageId, _ := marketplaceAPI.GetLocalImageIDByLabel(&marketplace.GetLocalImageIDByLabelRequest{
+		Zone:           zone,
+		CommercialType: serverType,
+		ImageLabel:     imageLabel,
+	})
+
+	testhelpers.Equals(t, expectedImageId, res.Server.Image.ID)
+
 	err = instanceAPI.DeleteServer(&DeleteServerRequest{
 		Zone:     scw.ZoneFrPar1,
 		ServerID: res.Server.ID,
